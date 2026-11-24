@@ -1,0 +1,90 @@
+@import "tailwindcss";
+@import "./brand.css";
+@theme {
+  --color-primary: #172842;
+}
+body {
+  color: #172842;
+}
+.shell {
+  min-height: 70vh;
+  background: #f5f7fa;
+  padding: clamp(1.5rem, 5vw, 4rem) 5%;
+}
+.sheet {
+  max-width: 620px;
+  margin: auto;
+  background: white;
+  border: 1px solid #dce2e9;
+  border-radius: 1rem;
+  padding: clamp(1.35rem, 4vw, 3rem);
+}
+.sheet h1,
+.board h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.12;
+  letter-spacing: -0.05em;
+  font-weight: 750;
+}
+.sheet label {
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+.sheet form {
+  display: grid;
+  gap: 1.15rem;
+  margin-top: 1.5rem;
+}
+.sheet input {
+  font-weight: 400;
+}
+.board {
+  max-width: 1200px;
+  margin: auto;
+}
+.board table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+.board th,
+.board td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+.board th {
+  background: #f8fafc;
+  font-size: 0.83rem;
+}
+.board select {
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 6px;
+}
+.brand h3,
+article h3 {
+  font-weight: 700;
+}
+.program h2,
+.about h2,
+.contact h2 {
+  font-weight: 740;
+}
+.adminbar {
+  border-bottom: 1px solid #dce2e9;
+  background: white;
+}
+.adminbar .bar {
+  flex-wrap: nowrap;
+  padding: 10px 0;
+}
+.sheet [role="alert"] {
+  color: #99352c;
+}
+.admin-link {
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
