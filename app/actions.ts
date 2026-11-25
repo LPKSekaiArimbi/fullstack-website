@@ -1,45 +1,266 @@
 "use server";
-import { scrypt, timingSafeEqual } from "node:crypto";
+import { randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { requireAdmin, startSession, endSession } from "@/lib/auth";
+import {
+  registrationDocuments,
+  type RegistrationDocumentKey,
+} from "@/lib/registration";
 const text = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const uuid =
   /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-export type Result = { error?: string; number?: string };
+export type Result = {
+  error?: string;
+  fieldErrors?: Record<string, string>;
+  number?: string;
+};
+class RegistrationConflictError extends Error {}
+
 export async function register(_: Result, form: FormData): Promise<Result> {
   const name = text(form, "name"),
+    nik = text(form, "nik"),
+    kkNumber = text(form, "kk_number"),
+    birthPlace = text(form, "birth_place"),
+    birthDate = text(form, "birth_date"),
+    gender = text(form, "gender"),
+    religion = text(form, "religion"),
+    maritalStatus = text(form, "marital_status"),
+    ktpAddress = text(form, "ktp_address"),
+    domicileAddress = text(form, "domicile_address"),
     phone = text(form, "phone").replace(/[\s()-]/g, ""),
-    city = text(form, "city"),
+    email = text(form, "email").toLowerCase(),
+    educationLevel = text(form, "education_level"),
+    schoolName = text(form, "school_name"),
+    major = text(form, "major"),
+    graduationYearText = text(form, "graduation_year"),
+    graduationYear = Number(graduationYearText),
+    heightText = text(form, "height_cm"),
+    heightCm = Number(heightText),
+    weightText = text(form, "weight_kg"),
+    weightKg = Number(weightText),
+    bloodType = text(form, "blood_type"),
+    eyeMinus = text(form, "eye_minus"),
     id = text(form, "id");
+  const date = new Date(`${birthDate}T00:00:00.000Z`);
+  const currentYear = new Date().getFullYear();
+  if (!uuid.test(id)) return { error: "Formulir pendaftaran tidak valid." };
+
+  const fieldErrors: Record<string, string> = {};
+  if (!name) fieldErrors.name = "Nama lengkap wajib diisi.";
+  else if (name.length > 120)
+    fieldErrors.name = "Nama lengkap maksimal 120 karakter.";
+  if (!/^\d{16}$/.test(nik))
+    fieldErrors.nik = "NIK harus terdiri dari 16 digit angka.";
+  if (!/^\d{16}$/.test(kkNumber))
+    fieldErrors.kk_number = "Nomor KK harus terdiri dari 16 digit angka.";
+  if (!birthPlace) fieldErrors.birth_place = "Tempat lahir wajib diisi.";
+  else if (birthPlace.length > 100)
+    fieldErrors.birth_place = "Tempat lahir maksimal 100 karakter.";
   if (
-    !uuid.test(id) ||
-    !name ||
-    name.length > 120 ||
-    !city ||
-    city.length > 100 ||
-    !/^\+?\d{8,15}$/.test(phone)
+    !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) ||
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== birthDate ||
+    date.getTime() > Date.now()
   )
-    return {
-      error: "Periksa nama, domisili, dan nomor WhatsApp (8–15 digit).",
-    };
+    fieldErrors.birth_date =
+      "Masukkan tanggal lahir yang valid dan tidak melebihi hari ini.";
+  if (!["Laki-laki", "Perempuan"].includes(gender))
+    fieldErrors.gender = "Pilih jenis kelamin.";
+  if (
+    ![
+      "Islam",
+      "Kristen Protestan",
+      "Katolik",
+      "Hindu",
+      "Buddha",
+      "Konghucu",
+      "Lainnya",
+    ].includes(religion)
+  )
+    fieldErrors.religion = "Pilih agama.";
+  if (!["Belum menikah", "Menikah", "Cerai hidup", "Cerai mati"].includes(
+    maritalStatus,
+  ))
+    fieldErrors.marital_status = "Pilih status pernikahan.";
+  if (!ktpAddress) fieldErrors.ktp_address = "Alamat sesuai KTP wajib diisi.";
+  else if (ktpAddress.length > 500)
+    fieldErrors.ktp_address = "Alamat maksimal 500 karakter.";
+  if (domicileAddress.length > 500)
+    fieldErrors.domicile_address = "Alamat maksimal 500 karakter.";
+  if (!phone) fieldErrors.phone = "Nomor WhatsApp wajib diisi.";
+  else if (!/^\+?\d{8,15}$/.test(phone))
+    fieldErrors.phone = "Masukkan nomor WhatsApp yang terdiri dari 8–15 digit.";
+  if (!email) fieldErrors.email = "Email wajib diisi.";
+  else if (
+    email.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  )
+    fieldErrors.email = "Masukkan alamat email yang valid.";
+  if (!["SMP", "SMA", "SMK", "D3", "S1"].includes(educationLevel))
+    fieldErrors.education_level = "Pilih pendidikan terakhir.";
+  if (!schoolName) fieldErrors.school_name = "Asal sekolah wajib diisi.";
+  else if (schoolName.length > 150)
+    fieldErrors.school_name = "Asal sekolah maksimal 150 karakter.";
+  if (!major) fieldErrors.major = "Jurusan wajib diisi.";
+  else if (major.length > 120)
+    fieldErrors.major = "Jurusan maksimal 120 karakter.";
+  if (!graduationYearText)
+    fieldErrors.graduation_year = "Tahun kelulusan wajib diisi.";
+  else if (
+    !Number.isInteger(graduationYear) ||
+    graduationYear < 1950 ||
+    graduationYear > currentYear
+  )
+    fieldErrors.graduation_year = `Tahun kelulusan harus antara 1950 dan ${currentYear}.`;
+  if (!heightText) fieldErrors.height_cm = "Tinggi badan wajib diisi.";
+  else if (!Number.isInteger(heightCm) || heightCm < 100 || heightCm > 230)
+    fieldErrors.height_cm = "Tinggi badan harus antara 100 dan 230 cm.";
+  if (!weightText) fieldErrors.weight_kg = "Berat badan wajib diisi.";
+  else if (!Number.isInteger(weightKg) || weightKg < 20 || weightKg > 250)
+    fieldErrors.weight_kg = "Berat badan harus antara 20 dan 250 kg.";
+  if (!["A", "B", "AB", "O", "Belum tahu"].includes(bloodType))
+    fieldErrors.blood_type = "Pilih golongan darah.";
+  if (!eyeMinus) fieldErrors.eye_minus = "Data mata minus wajib diisi.";
+  else if (eyeMinus.length > 100)
+    fieldErrors.eye_minus = "Data mata minus maksimal 100 karakter.";
+  if (Object.keys(fieldErrors).length) return { fieldErrors };
+
+  const uploaded: {
+    id: string;
+    key: RegistrationDocumentKey;
+    name: string;
+    contentType: string;
+    data: Buffer;
+  }[] = [];
+  let totalFileSize = 0;
+  for (const document of registrationDocuments) {
+    const values = form
+      .getAll(`document_${document.key}`)
+      .filter((value): value is File => value instanceof File && value.size > 0);
+    if (!values.length)
+      return {
+        fieldErrors: {
+          [`document_${document.key}`]: `Berkas ${document.label} wajib diunggah.`,
+        },
+      };
+    if (!document.multiple && values.length > 1)
+      return {
+        fieldErrors: {
+          [`document_${document.key}`]: `Unggah satu berkas untuk ${document.label}.`,
+        },
+      };
+
+    for (const value of values) {
+      if (value.size > 1_000_000)
+        return {
+          fieldErrors: {
+            [`document_${document.key}`]: `Berkas ${document.label} melebihi batas 1 MB.`,
+          },
+        };
+      totalFileSize += value.size;
+      if (totalFileSize > 3_500_000)
+        return {
+          fieldErrors: {
+            [`document_${document.key}`]:
+              "Ukuran total semua berkas tidak boleh lebih dari 3,5 MB.",
+          },
+        };
+
+      const data = Buffer.from(await value.arrayBuffer());
+      const contentType =
+        data.subarray(0, 5).toString() === "%PDF-"
+          ? "application/pdf"
+          : data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
+            ? "image/jpeg"
+            : data.subarray(0, 8).equals(
+                  Buffer.from([
+                    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+                  ]),
+                )
+              ? "image/png"
+              : "";
+      if (
+        !contentType ||
+        value.type !== contentType ||
+        (document.key === "pas_foto" && contentType === "application/pdf")
+      )
+        return {
+          fieldErrors: {
+            [`document_${document.key}`]: `Format berkas ${document.label} harus PDF, JPG, atau PNG yang valid.`,
+          },
+        };
+
+      uploaded.push({
+        id: randomUUID(),
+        key: document.key,
+        name:
+          value.name
+            .split(/[\\/]/)
+            .pop()
+            ?.replace(/[^\w.-]/g, "_")
+            .slice(0, 120) || document.label,
+        contentType,
+        data,
+      });
+    }
+  }
+
   try {
     const db = sql();
-    const saved =
-      await db`INSERT INTO registrations(id,full_name,whatsapp,domicile) VALUES(${id},${name},${phone},${city}) ON CONFLICT(id) DO NOTHING RETURNING id`;
-    if (
-      !saved.length &&
-      !(
-        await db`SELECT 1 FROM registrations WHERE id=${id} AND full_name=${name} AND whatsapp=${phone} AND domicile=${city}`
-      ).length
-    )
+    await db.begin(async (tx) => {
+      const saved = await tx`
+        INSERT INTO registrations(
+          id,full_name,whatsapp,domicile,nik,kk_number,birth_place,birth_date,
+          gender,religion,marital_status,ktp_address,domicile_address,email,
+          education_level,school_name,major,graduation_year,height_cm,weight_kg,
+          blood_type,eye_minus
+        ) VALUES(
+          ${id},${name},${phone},${domicileAddress || ktpAddress},${nik},
+          ${kkNumber},${birthPlace},${birthDate},${gender},${religion},
+          ${maritalStatus},${ktpAddress},${domicileAddress || null},${email},
+          ${educationLevel},${schoolName},${major},${graduationYear},${heightCm},
+          ${weightKg},${bloodType},${eyeMinus}
+        ) ON CONFLICT(id) DO NOTHING RETURNING id
+      `;
+      if (!saved.length) {
+        const [existing] = await tx`
+          SELECT 1 FROM registrations WHERE id=${id} AND full_name=${name}
+            AND whatsapp=${phone} AND nik=${nik} AND kk_number=${kkNumber}
+        `;
+        const [documentCount] = await tx`
+          SELECT count(*)::int AS total FROM registration_documents
+          WHERE registration_id=${id}
+        `;
+        if (!existing || documentCount.total !== uploaded.length)
+          throw new RegistrationConflictError();
+        return;
+      }
+
+      for (const document of uploaded) {
+        await tx`
+          INSERT INTO registration_documents(
+            document_id,registration_id,document_type,file_name,content_type,
+            file_size,file_data
+          ) VALUES(
+            ${document.id},${id},${document.key},${document.name},
+            ${document.contentType},${document.data.length},${document.data}
+          )
+        `;
+      }
+    });
+  } catch (error) {
+    if (error instanceof RegistrationConflictError)
       return {
         error:
           "Formulir ini sudah digunakan. Buka formulir baru untuk pendaftaran berikutnya.",
       };
-  } catch {
+    console.error(
+      "Registration save failed:",
+      error instanceof Error ? error.name : "UnknownError",
+    );
     return { error: "Pendaftaran belum terkonfirmasi. Silakan kirim kembali." };
   }
   return { number: "SA-" + id.toUpperCase() };
@@ -53,7 +274,12 @@ export async function login(_: Result, form: FormData): Promise<Result> {
     !password ||
     password.length > 512
   )
-    return { error: "Email atau kata sandi salah." };
+    return {
+      fieldErrors: {
+        email: "Email atau kata sandi salah.",
+        password: "Email atau kata sandi salah.",
+      },
+    };
   try {
     const db = sql();
     const [limit] =

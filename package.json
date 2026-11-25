@@ -2,11 +2,12 @@
   "name": "sekai-arimbi",
   "private": true,
   "version": "1.0.0",
+  "packageManager": "bun@1.4.5",
   "scripts": {
-    "build": "next build --webpack",
-    "dev": "next dev",
-    "start": "next start",
-    "db:init": "node --env-file-if-exists=.env.local scripts/init.mjs"
+    "build": "bun --bun next build --webpack",
+    "dev": "bun --bun next dev",
+    "start": "bun --bun next start",
+    "db:init": "bun scripts/init.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.5.0",

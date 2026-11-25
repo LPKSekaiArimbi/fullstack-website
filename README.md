@@ -1,23 +1,25 @@
 # LPK Sekai Arimbi
 
-Aplikasi pendaftaran siswa berbasis Next.js App Router, TypeScript, Tailwind CSS, komponen shadcn/ui, dan PostgreSQL. Target hosting adalah Vercel (runtime Node.js).
+Aplikasi pendaftaran siswa berbasis Next.js App Router, TypeScript, Tailwind CSS, komponen shadcn/ui, Bun, dan PostgreSQL. Target hosting adalah Vercel dengan Bun Runtime 1.4.x (Beta).
 
 | Halaman | URL | Fungsi |
 | --- | --- | --- |
 | Beranda | / | Profil lembaga, program, dan tombol pendaftaran |
-| Pendaftaran | /pendaftaran | Nama lengkap, WhatsApp, domisili, dan bukti pendaftaran |
+| Pendaftaran | /pendaftaran | Data diri, pendidikan, kesehatan, dokumen pendaftaran, dan bukti pendaftaran |
 | Login admin | /admin/login | Akses untuk satu akun pengelola |
 | Dashboard | /admin/dashboard | Ringkasan, pencarian, halaman daftar, dan perubahan status |
 
 ## Menjalankan secara lokal
 
-Gunakan Node.js 24 LTS dan PostgreSQL. Dari direktori yang berisi package.json:
+Gunakan Bun 1.4.x dan PostgreSQL. Dari direktori proyek:
 
-1. Jalankan `npm ci`.
-2. Salin `.env.example` menjadi `.env.local`.
+1. Jalankan `bun install --frozen-lockfile`.
+2. Salin `.env.example` menjadi `.env.local` (PowerShell: `Copy-Item .env.example .env.local`).
 3. Isi `DATABASE_URL` dengan URI PostgreSQL milik proyek, `ADMIN_EMAIL` dengan email pengelola, dan `ADMIN_PASSWORD_HASH` dengan hasil perintah di bawah.
-4. Jalankan `npm run db:init` untuk membuat tabel. Akun database perlu izin membuat tabel dan indeks.
-5. Jalankan `npm run dev`, lalu buka http://localhost:3000.
+4. Jalankan `bun run db:init` untuk membuat tabel. Akun database perlu izin membuat tabel dan indeks.
+5. Jalankan `bun run dev`, lalu buka http://localhost:3000.
+
+Form pendaftaran menyimpan data calon siswa dan berkas PDF/JPG/PNG di PostgreSQL. Setiap berkas dibatasi 1 MB dan total unggahan 3,5 MB. Unggahan ijazah menerima beberapa berkas. Admin yang sudah login dapat melihat data serta mengunduh berkas dari dashboard.
 
 ### Membuat hash kata sandi admin
 
@@ -26,7 +28,7 @@ Gunakan kata sandi 12–512 karakter. Perintah berikut bisa dijalankan di Bash a
 ```bash
 read -rs -p "Kata sandi admin: " admin_pass
 printf '\n'
-printf '%s' "$admin_pass" | node scripts/admin-hash.mjs
+printf '%s' "$admin_pass" | bun scripts/admin-hash.mjs
 unset admin_pass
 ```
 
@@ -35,10 +37,10 @@ Salin hasil berupa pasangan salt dan hash ke ADMIN_PASSWORD_HASH. Situs menyimpa
 ## Deployment Vercel
 
 1. Siapkan PostgreSQL produksi, misalnya Neon melalui Vercel Marketplace. Gunakan connection string *pooled* dengan TLS sesuai penyedia.
-2. Impor repositori aplikasi ke Vercel dan pilih direktori yang berisi package.json sebagai Root Directory. Framework preset adalah Next.js. Pilih Node.js 24.x.
+2. Impor repositori aplikasi ke Vercel dan pilih direktori yang berisi package.json sebagai Root Directory. Framework preset adalah Next.js. Vercel menggunakan Bun Runtime 1.4.x (Beta) sesuai `vercel.json` dan mendeteksi package manager dari `bun.lock`.
 3. Isi tiga environment variable di atas untuk Production. Jika memakai Preview, gunakan database dan kredensial terpisah.
-4. Jalankan `npm run db:init` dengan DATABASE_URL database tujuan sebelum menerima pendaftaran. Script dapat dijalankan ulang.
-5. Deploy dan uji /pendaftaran serta /admin/login. Untuk menguji build lokal, gunakan `npm run build` lalu `npm start`.
+4. Jalankan `bun run db:init` dengan DATABASE_URL database tujuan sebelum menerima pendaftaran. Script dapat dijalankan ulang.
+5. Deploy dan uji /pendaftaran serta /admin/login. Untuk menguji build lokal, gunakan `bun run build` lalu `bun run start`.
 
 ## Data situs sebelumnya
 

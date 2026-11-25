@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { BookOpen, BriefcaseBusiness, Landmark, MapPin } from "lucide-react";
+import { BookOpen, BriefcaseBusiness, Landmark } from "lucide-react";
 import { Header, Footer } from "@/components/layout";
+import { HeroCarousel } from "@/components/hero-carousel";
 import { Button } from "@/components/ui/button";
 const programs = [
   {
@@ -48,16 +49,7 @@ export default function Home() {
               </Button>
             </div>
           </div>
-          <figure>
-            <img
-              src="/fuji.jpg"
-              alt="Gunung Fuji dan Pagoda Chureito di Jepang"
-            />
-            <figcaption>
-              <MapPin />
-              Gunung Fuji, Jepang
-            </figcaption>
-          </figure>
+          <HeroCarousel />
         </section>
         <section className="program" id="program">
           <div className="wrap">

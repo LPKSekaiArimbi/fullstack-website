@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requireAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import {
+  registrationDocuments,
+  type RegistrationDocumentKey,
+} from "@/lib/registration";
 import { logout, updateStatus } from "@/app/actions";
 export const metadata = { title: "Dashboard admin", robots: { index: false } };
 const states = ["Baru", "Dihubungi", "Diterima"];
@@ -18,8 +22,32 @@ type Row = {
   full_name: string;
   whatsapp: string;
   domicile: string;
+  nik: string | null;
+  kk_number: string | null;
+  birth_place: string | null;
+  birth_date: string | Date | null;
+  gender: string | null;
+  religion: string | null;
+  marital_status: string | null;
+  ktp_address: string | null;
+  domicile_address: string | null;
+  email: string | null;
+  education_level: string | null;
+  school_name: string | null;
+  major: string | null;
+  graduation_year: number | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  blood_type: string | null;
+  eye_minus: string | null;
   status: string;
   created_at: Date;
+};
+type DocumentRow = {
+  document_id: string;
+  registration_id: string;
+  document_type: RegistrationDocumentKey;
+  file_name: string;
 };
 export default async function Page({
   searchParams,
@@ -42,6 +70,19 @@ export default async function Page({
   const rows = await db<
     Row[]
   >`SELECT * FROM registrations ${match} ORDER BY created_at DESC,id DESC LIMIT 20 OFFSET ${(page - 1) * 20}`;
+  const documents = rows.length
+    ? await db<DocumentRow[]>`
+      SELECT document_id,registration_id,document_type,file_name
+        FROM registration_documents
+        WHERE registration_id=ANY(${rows.map((row) => row.id)}::uuid[])
+      `
+    : [];
+  const documentsByRegistration = new Map<string, DocumentRow[]>();
+  for (const document of documents) {
+    const list = documentsByRegistration.get(document.registration_id) ?? [];
+    list.push(document);
+    documentsByRegistration.set(document.registration_id, list);
+  }
   const href = (p: number) =>
     "/admin/dashboard?" + new URLSearchParams({ q, p: String(p) });
   return (
@@ -113,7 +154,16 @@ export default async function Page({
                         "Status",
                       ].map((t) => (
                         <th key={t} scope="col">
-                          {t}
+                          {t === "Status" ? (
+                            <>
+                              Status
+                              <span className="required-mark" aria-hidden="true">
+                                *
+                              </span>
+                            </>
+                          ) : (
+                            t
+                          )}
                         </th>
                       ))}
                     </tr>
@@ -126,6 +176,70 @@ export default async function Page({
                           <div className="mt-1 text-xs text-slate-600">
                             SA-{r.id.toUpperCase()}
                           </div>
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-sm font-medium underline">
+                              Data lengkap dan berkas
+                            </summary>
+                            <dl className="mt-3 grid gap-2 text-sm">
+                              {[
+                                ["NIK", r.nik],
+                                ["Nomor KK", r.kk_number],
+                                [
+                                  "Tempat, tanggal lahir",
+                                  [
+                                    r.birth_place,
+                                    r.birth_date instanceof Date
+                                      ? r.birth_date.toISOString().slice(0, 10)
+                                      : r.birth_date,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(", "),
+                                ],
+                                ["Jenis kelamin", r.gender],
+                                ["Agama", r.religion],
+                                ["Status pernikahan", r.marital_status],
+                                ["Alamat sesuai KTP", r.ktp_address],
+                                [
+                                  "Alamat domisili",
+                                  r.domicile_address || "Sama dengan alamat KTP",
+                                ],
+                                ["Email", r.email],
+                                ["Pendidikan terakhir", r.education_level],
+                                ["Asal sekolah", r.school_name],
+                                ["Jurusan", r.major],
+                                ["Tahun kelulusan", r.graduation_year],
+                                ["Tinggi badan", r.height_cm && `${r.height_cm} cm`],
+                                ["Berat badan", r.weight_kg && `${r.weight_kg} kg`],
+                                ["Golongan darah", r.blood_type],
+                                ["Mata minus", r.eye_minus],
+                              ].map(([label, value]) => (
+                                <div key={label} className="grid grid-cols-2 gap-2">
+                                  <dt className="font-semibold">{label}</dt>
+                                  <dd className="break-words">{value || "—"}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                            <ul className="mt-3 space-y-1 text-sm">
+                              {(documentsByRegistration.get(r.id) ?? []).map(
+                                (document) => {
+                                  const label = registrationDocuments.find(
+                                    (item) => item.key === document.document_type,
+                                  )?.label;
+                                  return (
+                                    <li key={document.document_type}>
+                                      {label}:{" "}
+                                      <a
+                                        className="underline"
+                                        href={`/admin/berkas/${r.id}/${document.document_type}/${document.document_id}`}
+                                      >
+                                        Unduh
+                                      </a>
+                                    </li>
+                                  );
+                                },
+                              )}
+                            </ul>
+                          </details>
                         </td>
                         <td>{r.whatsapp}</td>
                         <td>{r.domicile}</td>
@@ -140,6 +254,7 @@ export default async function Page({
                               name="status"
                               aria-label={"Status " + r.full_name}
                               defaultValue={r.status}
+                              required
                             >
                               {states.map((s) => (
                                 <option key={s}>{s}</option>
