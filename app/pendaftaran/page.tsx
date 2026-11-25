@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { Header, Footer } from "@/components/layout";
+import { Brand } from "@/components/layout";
 import { RegistrationForm } from "@/components/forms";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Pendaftaran siswa baru" };
 export default function Page() {
   return (
     <>
-      <Header />
+      <header className="regisBar">
+        <div className="bar">
+          <Brand />
+        </div>
+      </header>
       <main className="shell">
         <section className="sheet">
           <p className="label">
@@ -16,7 +20,6 @@ export default function Page() {
           <RegistrationForm id={randomUUID()} />
         </section>
       </main>
-      <Footer />
     </>
   );
 }
