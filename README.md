@@ -19,7 +19,7 @@ Gunakan Bun 1.4.x dan PostgreSQL. Dari direktori proyek:
 4. Jalankan `bun run db:init` untuk membuat tabel. Akun database perlu izin membuat tabel dan indeks.
 5. Jalankan `bun run dev`, lalu buka http://localhost:3000.
 
-Form pendaftaran menyimpan data calon siswa dan berkas PDF/JPG/PNG di PostgreSQL. Setiap berkas dibatasi 1 MB dan total unggahan 3,5 MB. Unggahan ijazah menerima beberapa berkas. Admin yang sudah login dapat melihat data serta mengunduh berkas dari dashboard.
+Form pendaftaran menyimpan data calon siswa dan berkas PDF di PostgreSQL. Setiap berkas dibatasi 1 MB dan total unggahan 3,5 MB. Unggahan ijazah menerima beberapa berkas. Admin yang sudah login dapat melihat data serta mengunduh berkas dari dashboard.
 
 ### Membuat hash kata sandi admin
 

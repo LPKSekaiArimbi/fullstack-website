@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { HeaderNavigation } from "@/components/header-navigation";
 export function Brand() {
   return (
     <Link className="brand" href="/">
@@ -15,15 +15,7 @@ export function Header() {
     <header>
       <div className="bar">
         <Brand />
-        <nav aria-label="Navigasi utama">
-          <Link href="/">Beranda</Link>
-          <a href="/#program">Program</a>
-          <a href="/#tentang">Tentang Kami</a>
-          <a href="/#kontak">Kontak</a>
-        </nav>
-        <Button asChild>
-          <Link href="/pendaftaran">Daftar Sekarang</Link>
-        </Button>
+        <HeaderNavigation />
       </div>
     </header>
   );

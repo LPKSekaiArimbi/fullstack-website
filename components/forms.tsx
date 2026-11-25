@@ -402,8 +402,8 @@ export function RegistrationForm({ id }: { id: string }) {
         <section className="form-section" aria-labelledby="documents-title">
           <h2 id="documents-title">Upload berkas</h2>
           <p className="form-note">
-            Unggah PDF, JPG, atau PNG. Maksimal 1 MB per berkas dan 3,5 MB
-            untuk seluruh berkas.
+            Unggah PDF saja. Maksimal 1 MB per berkas dan 3,5 MB untuk seluruh
+            berkas.
           </p>
           {registrationDocuments.map(({ key, label, accept, multiple }) => (
             <Field key={key} label={label}>

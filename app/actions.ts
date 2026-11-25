@@ -170,26 +170,11 @@ export async function register(_: Result, form: FormData): Promise<Result> {
         };
 
       const data = Buffer.from(await value.arrayBuffer());
-      const contentType =
-        data.subarray(0, 5).toString() === "%PDF-"
-          ? "application/pdf"
-          : data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
-            ? "image/jpeg"
-            : data.subarray(0, 8).equals(
-                  Buffer.from([
-                    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-                  ]),
-                )
-              ? "image/png"
-              : "";
-      if (
-        !contentType ||
-        value.type !== contentType ||
-        (document.key === "pas_foto" && contentType === "application/pdf")
-      )
+      const isPdf = data.subarray(0, 5).toString() === "%PDF-";
+      if (!isPdf)
         return {
           fieldErrors: {
-            [`document_${document.key}`]: `Format berkas ${document.label} harus PDF, JPG, atau PNG yang valid.`,
+            [`document_${document.key}`]: `Berkas ${document.label} harus berupa PDF yang valid.`,
           },
         };
 
@@ -202,7 +187,7 @@ export async function register(_: Result, form: FormData): Promise<Result> {
             .pop()
             ?.replace(/[^\w.-]/g, "_")
             .slice(0, 120) || document.label,
-        contentType,
+        contentType: "application/pdf",
         data,
       });
     }
