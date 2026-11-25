@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useState,
+  type ComponentProps,
   type Dispatch,
   type FormEvent,
   type ReactNode,
@@ -17,6 +18,7 @@ import { register, login, type Result } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { registrationDocuments } from "@/lib/registration";
+import { Eye, EyeOff } from "lucide-react";
 
 type FieldErrors = Record<string, string>;
 type FieldControl =
@@ -29,6 +31,34 @@ type FieldControlProps = {
   "aria-invalid"?: boolean;
 };
 const FieldErrorsContext = createContext<FieldErrors>({});
+
+function PasswordInput(props: ComponentProps<typeof Input>) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="password-field">
+      <Input
+        {...props}
+        id="admin-password"
+        type={visible ? "text" : "password"}
+      />
+      <button
+        className="password-toggle"
+        type="button"
+        aria-label={visible ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+        aria-controls="admin-password"
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+      >
+        {visible ? (
+          <EyeOff aria-hidden="true" />
+        ) : (
+          <Eye aria-hidden="true" />
+        )}
+      </button>
+    </div>
+  );
+}
 
 function isFieldControl(target: EventTarget): target is FieldControl {
   return (
@@ -311,7 +341,7 @@ export function RegistrationForm({ id }: { id: string }) {
             title="Masukkan nomor WhatsApp yang terdiri dari 8–15 digit."
             maxLength={25}
             required
-            placeholder="Contoh: 0812 3456 7890"
+            placeholder="Contoh: 081234567890"
           />
         </Field>
         <Field label="Email (email pribadi aktif)">
@@ -425,7 +455,7 @@ export function LoginForm() {
             <Input type="email" name="email" required autoComplete="username" />
           </Field>
           <Field label="Kata sandi">
-            <Input
+            <PasswordInput
               type="password"
               name="password"
               required

@@ -586,6 +586,39 @@ footer {
   padding: 9px;
   font-size: 0.9rem;
 }
+.password-field {
+  position: relative;
+}
+.password-field input {
+  padding-right: 3.25rem;
+}
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.65rem;
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #536072;
+  cursor: pointer;
+}
+.password-toggle:hover {
+  background: #f6f7f9;
+  color: var(--navy);
+}
+.password-toggle:focus-visible {
+  outline: 2px solid var(--navy);
+  outline-offset: 2px;
+}
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
+}
 .form-box button {
   width: 100%;
   border: 0;
