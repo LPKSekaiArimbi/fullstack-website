@@ -118,10 +118,10 @@ export default async function Page({
               </div>
             ))}
           </div>
-          <section className="rounded-xl border border-slate-200 bg-white">
+          <section className="registrants-panel rounded-xl border border-slate-200 bg-white">
             <form
               action="/admin/dashboard"
-              className="flex flex-wrap items-end gap-2 p-4"
+              className="registrants-search flex flex-wrap items-end gap-2 p-4"
             >
               <label className="min-w-48 flex-1 text-sm font-semibold">
                 Cari pendaftar
@@ -141,8 +141,13 @@ export default async function Page({
               )}
             </form>
             {rows.length ? (
-              <div className="overflow-x-auto">
-                <table>
+              <div
+                className="registrants-table-scroll overflow-x-auto"
+                role="region"
+                aria-label="Tabel pendaftar; gulir horizontal untuk melihat semua kolom"
+                tabIndex={0}
+              >
+                <table className="registrants-table">
                   <caption className="sr-only">Daftar pendaftar</caption>
                   <thead>
                     <tr>
@@ -172,15 +177,15 @@ export default async function Page({
                     {rows.map((r) => (
                       <tr key={r.id}>
                         <td>
-                          <b>{r.full_name}</b>
-                          <div className="mt-1 text-xs text-slate-600">
+                          <b className="registrant-name">{r.full_name}</b>
+                          <div className="registrant-id mt-1 text-xs text-slate-600">
                             SA-{r.id.toUpperCase()}
                           </div>
-                          <details className="mt-2">
-                            <summary className="cursor-pointer text-sm font-medium underline">
+                          <details className="registrant-details mt-2">
+                            <summary className="cursor-pointer text-sm font-medium">
                               Data lengkap dan berkas
                             </summary>
-                            <dl className="mt-3 grid gap-2 text-sm">
+                            <dl className="registrant-data mt-3 grid gap-2 text-sm">
                               {[
                                 ["NIK", r.nik],
                                 ["Nomor KK", r.kk_number],
@@ -213,13 +218,16 @@ export default async function Page({
                                 ["Golongan darah", r.blood_type],
                                 ["Mata minus", r.eye_minus],
                               ].map(([label, value]) => (
-                                <div key={label} className="grid grid-cols-2 gap-2">
+                                <div
+                                  key={label}
+                                  className="registrant-data-item grid grid-cols-2 gap-2"
+                                >
                                   <dt className="font-semibold">{label}</dt>
                                   <dd className="break-words">{value || "—"}</dd>
                                 </div>
                               ))}
                             </dl>
-                            <ul className="mt-3 space-y-1 text-sm">
+                            <ul className="registrant-documents mt-3 space-y-1 text-sm">
                               {(documentsByRegistration.get(r.id) ?? []).map(
                                 (document) => {
                                   const label = registrationDocuments.find(
@@ -229,7 +237,7 @@ export default async function Page({
                                     <li key={document.document_id}>
                                       {label}:{" "}
                                       <a
-                                        className="underline"
+                                        className="registrant-document-link"
                                         href={`/admin/berkas/${r.id}/${document.document_type}/${document.document_id}`}
                                       >
                                         Unduh
@@ -237,6 +245,16 @@ export default async function Page({
                                     </li>
                                   );
                                 },
+                              )}
+                              {documentsByRegistration.has(r.id) && (
+                                <li className="registrant-download-all-row">
+                                  <a
+                                    className="registrant-download-all"
+                                    href={`/admin/berkas/${r.id}/gabungan`}
+                                  >
+                                    Unduh semua berkas (PDF)
+                                  </a>
+                                </li>
                               )}
                             </ul>
                           </details>
@@ -247,10 +265,11 @@ export default async function Page({
                         <td>
                           <form
                             action={updateStatus}
-                            className="flex items-center gap-2"
+                            className="registrant-status-form flex items-center gap-2"
                           >
                             <input type="hidden" name="id" value={r.id} />
                             <select
+                              className="registrant-status-select"
                               name="status"
                               aria-label={"Status " + r.full_name}
                               defaultValue={r.status}
@@ -260,7 +279,10 @@ export default async function Page({
                                 <option key={s}>{s}</option>
                               ))}
                             </select>
-                            <button className="cursor-pointer text-sm font-semibold underline">
+                            <button
+                              className="registrant-save-button"
+                              type="submit"
+                            >
                               Simpan
                             </button>
                           </form>
@@ -277,13 +299,21 @@ export default async function Page({
                   : "Belum ada pendaftaran siswa."}
               </p>
             )}
-            <div className="flex items-center justify-between gap-3 p-4 text-sm">
+            <div className="registrants-pagination flex items-center justify-between gap-3 p-4 text-sm">
               <span>
                 {count.total} pendaftar · Halaman {page} dari {pages}
               </span>
               <div className="flex gap-3">
-                {page > 1 && <Link href={href(page - 1)}>Sebelumnya</Link>}
-                {page < pages && <Link href={href(page + 1)}>Berikutnya</Link>}
+                {page > 1 && (
+                  <Link className="registrant-page-link" href={href(page - 1)}>
+                    Sebelumnya
+                  </Link>
+                )}
+                {page < pages && (
+                  <Link className="registrant-page-link" href={href(page + 1)}>
+                    Berikutnya
+                  </Link>
+                )}
               </div>
             </div>
           </section>
