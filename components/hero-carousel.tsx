@@ -179,107 +179,116 @@ export function HeroCarousel() {
   }
 
   return (
-    <div
-      className="hero-carousel"
-      role="region"
-      aria-label="Galeri foto Jepang"
-      aria-roledescription="carousel"
-    >
+    <div className="hero-carousel-wrap">
       <div
-        className="hero-carousel-viewport"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
-        onPointerCancel={onPointerCancel}
+        className="hero-carousel"
+        role="region"
+        aria-label="Galeri foto Jepang"
+        aria-roledescription="carousel"
       >
         <div
-          className={[
-            "hero-carousel-track",
-            dragging && "is-dragging",
-            !transitionEnabled && "no-transition",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          style={{
-            transform: `translate3d(calc(-${position * 100}% + ${dragOffset}px), 0, 0)`,
-          }}
-          onTransitionEnd={onTrackTransitionEnd}
+          className="hero-carousel-viewport"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerCancel}
         >
-          {loopedSlides.map((slide, index) => {
-            const slideIndex = (index - 1 + slides.length) % slides.length;
-            const current = index === position;
-            return (
-              <figure
-                key={`${index}-${slide.src}`}
-                className="hero-carousel-slide"
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`${slideIndex + 1} dari ${slides.length}: ${slide.place}`}
-                aria-hidden={!current}
-                inert={!current}
-              >
-                <img src={slide.src} alt={slide.alt} draggable={false} />
-                <figcaption>
-                  <span className="carousel-location">
-                    <MapPin aria-hidden="true" />
-                    {slide.place}
-                  </span>
-                  {slide.credit && (
-                    <span className="carousel-credit">
-                      Foto oleh{" "}
-                      <a
-                        href={slide.credit.source}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {slide.credit.author}
-                      </a>
-                      {" · "}
-                      <a
-                        href={slide.credit.licenseUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {slide.credit.license}
-                      </a>
+          <div
+            className={[
+              "hero-carousel-track",
+              dragging && "is-dragging",
+              !transitionEnabled && "no-transition",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            style={{
+              transform: `translate3d(calc(-${position * 100}% + ${dragOffset}px), 0, 0)`,
+            }}
+            onTransitionEnd={onTrackTransitionEnd}
+          >
+            {loopedSlides.map((slide, index) => {
+              const slideIndex = (index - 1 + slides.length) % slides.length;
+              const current = index === position;
+              return (
+                <figure
+                  key={`${index}-${slide.src}`}
+                  className="hero-carousel-slide"
+                  role="group"
+                  aria-roledescription="slide"
+                  aria-label={`${slideIndex + 1} dari ${slides.length}: ${slide.place}`}
+                  aria-hidden={!current}
+                  inert={!current}
+                >
+                  <img src={slide.src} alt={slide.alt} draggable={false} />
+                  <figcaption>
+                    <span className="carousel-location">
+                      <MapPin aria-hidden="true" />
+                      {slide.place}
                     </span>
-                  )}
-                </figcaption>
-              </figure>
-            );
-          })}
+                  </figcaption>
+                </figure>
+              );
+            })}
+          </div>
+        </div>
+        <div className="carousel-controls">
+          <button
+            type="button"
+            onClick={() => move(-1)}
+            aria-label="Foto sebelumnya"
+          >
+            <ChevronLeft aria-hidden="true" />
+          </button>
+          <div className="carousel-dots" role="group" aria-label="Pilih foto">
+            {slides.map((item, index) => (
+              <button
+                key={item.src}
+                type="button"
+                onClick={() => goTo(index)}
+                aria-label={`Foto ${index + 1}: ${item.place}`}
+                aria-pressed={active === index}
+              />
+            ))}
+          </div>
+          <span className="sr-only" aria-live="polite">
+            {slides[active].place}, foto {active + 1} dari {slides.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => move(1)}
+            aria-label="Foto berikutnya"
+          >
+            <ChevronRight aria-hidden="true" />
+          </button>
         </div>
       </div>
-      <div className="carousel-controls">
-        <button
-          type="button"
-          onClick={() => move(-1)}
-          aria-label="Foto sebelumnya"
-        >
-          <ChevronLeft aria-hidden="true" />
-        </button>
-        <div className="carousel-dots" role="group" aria-label="Pilih foto">
-          {slides.map((item, index) => (
-            <button
-              key={item.src}
-              type="button"
-              onClick={() => goTo(index)}
-              aria-label={`Foto ${index + 1}: ${item.place}`}
-              aria-pressed={active === index}
-            />
-          ))}
-        </div>
-        <span className="sr-only" aria-live="polite">
-          {slides[active].place}, foto {active + 1} dari {slides.length}
-        </span>
-        <button
-          type="button"
-          onClick={() => move(1)}
-          aria-label="Foto berikutnya"
-        >
-          <ChevronRight aria-hidden="true" />
-        </button>
-      </div>
+      <details className="carousel-attributions">
+        <summary>Atribusi foto</summary>
+        <ul>
+          {slides.map((slide) =>
+            slide.credit ? (
+              <li key={slide.src}>
+                {slide.place} — Foto oleh {slide.credit.author}.{" "}
+                <a
+                  href={slide.credit.source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Sumber foto
+                </a>
+                {" · "}
+                <a
+                  href={slide.credit.licenseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {slide.credit.license}
+                </a>
+              </li>
+            ) : null,
+          )}
+        </ul>
+      </details>
     </div>
   );
 }

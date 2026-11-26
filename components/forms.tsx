@@ -6,9 +6,12 @@ import {
   useActionState,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ComponentProps,
+  type ChangeEvent,
   type Dispatch,
+  type FocusEvent,
   type FormEvent,
   type ReactNode,
   type SetStateAction,
@@ -18,6 +21,11 @@ import { register, login, type Result } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { registrationDocuments } from "@/lib/registration";
+import { getTodayInJakarta, parseIndonesianDate } from "@/lib/indonesian-date";
+import {
+  setRegistrationChangesUnsaved,
+  setRegistrationNavigationWarningHandler,
+} from "@/lib/registration-navigation";
 import { Eye, EyeOff } from "lucide-react";
 
 type FieldErrors = Record<string, string>;
@@ -31,6 +39,29 @@ type FieldControlProps = {
   "aria-invalid"?: boolean;
 };
 const FieldErrorsContext = createContext<FieldErrors>({});
+
+function FilePreviewLink({ file }: { file: File }) {
+  const [previewUrl, setPreviewUrl] = useState<string>();
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  if (!previewUrl) return null;
+  return (
+    <a
+      className="selected-file-preview"
+      href={previewUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Pratinjau ${file.name} di tab baru`}
+    >
+      Lihat PDF
+    </a>
+  );
+}
 
 function PasswordInput(props: ComponentProps<typeof Input>) {
   const [visible, setVisible] = useState(false);
@@ -68,7 +99,32 @@ function isFieldControl(target: EventTarget): target is FieldControl {
   );
 }
 
+function getSpecificFieldError(control: FieldControl) {
+  if (control.name === "birth_date") {
+    if (!control.value) return "Tanggal lahir wajib diisi.";
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(control.value))
+      return "Gunakan format tanggal dd/mm/yyyy.";
+    const isoDate = parseIndonesianDate(control.value);
+    if (!isoDate) return "Masukkan tanggal lahir yang valid.";
+    if (isoDate > getTodayInJakarta())
+      return "Tanggal lahir tidak boleh melebihi hari ini.";
+  }
+  if (control.name === "phone") {
+    const phone = control.value.replace(/[\s()-]/g, "");
+    if (!phone) return "Nomor WhatsApp wajib diisi.";
+    if (!/^\+?\d{8,15}$/.test(phone))
+      return "Masukkan nomor WhatsApp yang terdiri dari 8–15 digit.";
+  }
+  return undefined;
+}
+
+function isFieldValid(control: FieldControl) {
+  return control.validity.valid && !getSpecificFieldError(control);
+}
+
 function getFieldError(control: FieldControl) {
+  const specificError = getSpecificFieldError(control);
+  if (specificError) return specificError;
   if (control.validity.valueMissing)
     return control instanceof HTMLInputElement && control.type === "file"
       ? "Berkas ini wajib diunggah."
@@ -94,6 +150,12 @@ function getFieldError(control: FieldControl) {
   return "Data tidak sesuai kriteria.";
 }
 
+function syncCustomValidity(target: EventTarget) {
+  if (!isFieldControl(target)) return;
+  if (target.name === "birth_date" || target.name === "phone")
+    target.setCustomValidity(getSpecificFieldError(target) ?? "");
+}
+
 function captureInvalid(
   event: FormEvent<HTMLFormElement>,
   setFieldErrors: Dispatch<SetStateAction<FieldErrors>>,
@@ -114,10 +176,29 @@ function updateFieldError(
   setFieldErrors((current) => {
     if (!(target.name in current)) return current;
     const updated = { ...current };
-    if (target.validity.valid) delete updated[target.name];
+    if (isFieldValid(target)) delete updated[target.name];
     else updated[target.name] = getFieldError(target);
     return updated;
   });
+}
+
+function validateFieldOnBlur(
+  target: EventTarget,
+  setFieldErrors: Dispatch<SetStateAction<FieldErrors>>,
+) {
+  if (!isFieldControl(target) || !target.name) return;
+  setFieldErrors((current) => {
+    const updated = { ...current };
+    if (isFieldValid(target)) delete updated[target.name];
+    else updated[target.name] = getFieldError(target);
+    return updated;
+  });
+}
+
+function setInputFiles(input: HTMLInputElement, files: File[]) {
+  const transfer = new DataTransfer();
+  for (const file of files) transfer.items.add(file);
+  input.files = transfer.files;
 }
 
 function Field({
@@ -171,7 +252,97 @@ function Field({
 export function RegistrationForm({ id }: { id: string }) {
   const [state, submit, busy] = useActionState<Result, FormData>(register, {});
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
+  const [showNavigationWarning, setShowNavigationWarning] = useState(false);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const hasUnsavedChanges = useRef(false);
   useEffect(() => setFieldErrors(state.fieldErrors ?? {}), [state]);
+  useEffect(() => {
+    if (state.number) {
+      hasUnsavedChanges.current = false;
+      setRegistrationChangesUnsaved(false);
+    }
+  }, [state.number]);
+
+  useEffect(() => {
+    setRegistrationNavigationWarningHandler(() =>
+      setShowNavigationWarning(true),
+    );
+    return () => {
+      setRegistrationNavigationWarningHandler(null);
+      setRegistrationChangesUnsaved(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    const warning =
+      "Data dan berkas pendaftaran belum dikirim. Yakin ingin meninggalkan halaman?";
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const guardLinkNavigation = (event: MouseEvent) => {
+      if (
+        !hasUnsavedChanges.current ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest("a[href]");
+      if (
+        !(link instanceof HTMLAnchorElement) ||
+        (link.target && link.target.toLowerCase() !== "_self") ||
+        link.hasAttribute("download") ||
+        new URL(link.href, window.location.href).href === window.location.href
+      )
+        return;
+      if (window.confirm(warning)) {
+        hasUnsavedChanges.current = false;
+        setRegistrationChangesUnsaved(false);
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    document.addEventListener("click", guardLinkNavigation, true);
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      document.removeEventListener("click", guardLinkNavigation, true);
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, []);
+
+  function handleFileChange(
+    name: string,
+    multiple: boolean,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const addedFiles = Array.from(event.currentTarget.files ?? []);
+    const files = multiple
+      ? [...(selectedFiles[name] ?? []), ...addedFiles]
+      : addedFiles;
+    setInputFiles(event.currentTarget, files);
+    setSelectedFiles((current) => ({ ...current, [name]: files }));
+    updateFieldError(event.currentTarget, setFieldErrors);
+  }
+
+  function removeSelectedFile(name: string, index: number) {
+    const input = fileInputRefs.current[name];
+    if (!input) return;
+    const files = (selectedFiles[name] ?? []).filter(
+      (_, fileIndex) => fileIndex !== index,
+    );
+    setInputFiles(input, files);
+    setSelectedFiles((current) => ({ ...current, [name]: files }));
+    updateFieldError(input, setFieldErrors);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const fileInputs = Array.from(
@@ -242,8 +413,22 @@ export function RegistrationForm({ id }: { id: string }) {
         <form
           action={submit}
           onInvalidCapture={(event) => captureInvalid(event, setFieldErrors)}
-          onInput={(event) => updateFieldError(event.target, setFieldErrors)}
-          onChange={(event) => updateFieldError(event.target, setFieldErrors)}
+          onBlur={(event: FocusEvent<HTMLFormElement>) => {
+            syncCustomValidity(event.target);
+            validateFieldOnBlur(event.target, setFieldErrors);
+          }}
+          onInput={(event) => {
+            hasUnsavedChanges.current = true;
+            setRegistrationChangesUnsaved(true);
+            syncCustomValidity(event.target);
+            updateFieldError(event.target, setFieldErrors);
+          }}
+          onChange={(event) => {
+            hasUnsavedChanges.current = true;
+            setRegistrationChangesUnsaved(true);
+            syncCustomValidity(event.target);
+            updateFieldError(event.target, setFieldErrors);
+          }}
           onSubmit={handleSubmit}
         >
         <input type="hidden" name="id" value={id} />
@@ -285,10 +470,12 @@ export function RegistrationForm({ id }: { id: string }) {
           <Field label="Tanggal Lahir">
             <Input
               name="birth_date"
-              type="date"
-              max={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
-                .toISOString()
-                .slice(0, 10)}
+              type="text"
+              inputMode="numeric"
+              maxLength={10}
+              pattern="(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[0-2])/[0-9]{4}"
+              title="Gunakan format tanggal dd/mm/yyyy."
+              placeholder="dd/mm/yyyy"
               required
             />
           </Field>
@@ -337,7 +524,6 @@ export function RegistrationForm({ id }: { id: string }) {
             name="phone"
             type="tel"
             autoComplete="tel"
-            pattern="\+?[0-9\s()-]{8,25}"
             title="Masukkan nomor WhatsApp yang terdiri dari 8–15 digit."
             maxLength={25}
             required
@@ -352,12 +538,12 @@ export function RegistrationForm({ id }: { id: string }) {
             <option value="" disabled>
               Pilih pendidikan terakhir
             </option>
-            {["SMP", "SMA", "SMK", "D3", "S1"].map((level) => (
+            {["SMP", "SMA", "SMK", "D3", "D4", "S1"].map((level) => (
               <option key={level}>{level}</option>
             ))}
           </select>
         </Field>
-        <Field label="Asal Sekolah">
+        <Field label="Asal Institusi (Sekolah/Universitas)">
           <Input name="school_name" maxLength={150} required />
         </Field>
         <Field label="Jurusan (jurusan pendidikan)">
@@ -405,17 +591,54 @@ export function RegistrationForm({ id }: { id: string }) {
             Unggah PDF saja. Maksimal 1 MB per berkas dan 3,5 MB untuk seluruh
             berkas.
           </p>
-          {registrationDocuments.map(({ key, label, accept, multiple }) => (
-            <Field key={key} label={label}>
-              <Input
-                type="file"
-                name={`document_${key}`}
-                accept={accept}
-                multiple={multiple}
-                required
-              />
-            </Field>
-          ))}
+          <div className="upload-fields">
+            {registrationDocuments.map(({ key, label, accept, multiple }) => {
+              const name = `document_${key}`;
+              const files = selectedFiles[name] ?? [];
+              return (
+                <div key={key}>
+                  <Field label={label}>
+                    <Input
+                      ref={(input) => {
+                        fileInputRefs.current[name] = input;
+                      }}
+                      type="file"
+                      name={name}
+                      className={multiple ? "multiple-file-input" : undefined}
+                      accept={accept}
+                      multiple={multiple}
+                      required
+                      onChange={(event) =>
+                        handleFileChange(name, multiple, event)
+                      }
+                    />
+                  </Field>
+                  {files.length > 0 && (
+                    <ul className="selected-files">
+                      {files.map((file, index) => (
+                        <li key={`${file.name}-${file.lastModified}-${index}`}>
+                          <span className="selected-file-name">
+                            {file.name}
+                          </span>
+                          <div className="selected-file-actions">
+                            <FilePreviewLink file={file} />
+                            <button
+                              className="selected-file-remove"
+                              type="button"
+                              aria-label={`Hapus ${file.name}`}
+                              onClick={() => removeSelectedFile(name, index)}
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </section>
         <p className="form-note">
           Data pribadi dan berkas digunakan LPK Sekai Arimbi untuk proses
@@ -425,6 +648,44 @@ export function RegistrationForm({ id }: { id: string }) {
           {busy ? "Mengirim…" : "Kirim Pendaftaran"}
         </Button>
       </form>
+      {showNavigationWarning && (
+        <div className="navigation-warning-backdrop">
+          <section
+            className="navigation-warning"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="navigation-warning-title"
+            aria-describedby="navigation-warning-description"
+          >
+            <h2 id="navigation-warning-title">Data belum dikirim</h2>
+            <p id="navigation-warning-description">
+              Data dan berkas pendaftaranmu belum dikirim. Yakin ingin
+              meninggalkan halaman?
+            </p>
+            <div className="navigation-warning-actions">
+              <Button
+                type="button"
+                variant="outline"
+                autoFocus
+                onClick={() => setShowNavigationWarning(false)}
+              >
+                Tetap mengisi
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  hasUnsavedChanges.current = false;
+                  setRegistrationChangesUnsaved(false);
+                  setShowNavigationWarning(false);
+                  window.history.back();
+                }}
+              >
+                Tinggalkan halaman
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
       </FieldErrorsContext.Provider>
       {state.error && (
       <p className="form-validation-error" role="alert">

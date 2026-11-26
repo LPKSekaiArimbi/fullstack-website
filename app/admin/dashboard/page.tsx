@@ -205,7 +205,7 @@ export default async function Page({
                                 ],
                                 ["Email", r.email],
                                 ["Pendidikan terakhir", r.education_level],
-                                ["Asal sekolah", r.school_name],
+                                ["Asal institusi", r.school_name],
                                 ["Jurusan", r.major],
                                 ["Tahun kelulusan", r.graduation_year],
                                 ["Tinggi badan", r.height_cm && `${r.height_cm} cm`],
@@ -226,7 +226,7 @@ export default async function Page({
                                     (item) => item.key === document.document_type,
                                   )?.label;
                                   return (
-                                    <li key={document.document_type}>
+                                    <li key={document.document_id}>
                                       {label}:{" "}
                                       <a
                                         className="underline"

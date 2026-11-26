@@ -9,6 +9,7 @@ import {
   registrationDocuments,
   type RegistrationDocumentKey,
 } from "@/lib/registration";
+import { getTodayInJakarta, parseIndonesianDate } from "@/lib/indonesian-date";
 const text = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const uuid =
   /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -24,7 +25,8 @@ export async function register(_: Result, form: FormData): Promise<Result> {
     nik = text(form, "nik"),
     kkNumber = text(form, "kk_number"),
     birthPlace = text(form, "birth_place"),
-    birthDate = text(form, "birth_date"),
+    birthDateInput = text(form, "birth_date"),
+    birthDate = parseIndonesianDate(birthDateInput) ?? "",
     gender = text(form, "gender"),
     religion = text(form, "religion"),
     maritalStatus = text(form, "marital_status"),
@@ -44,7 +46,6 @@ export async function register(_: Result, form: FormData): Promise<Result> {
     bloodType = text(form, "blood_type"),
     eyeMinus = text(form, "eye_minus"),
     id = text(form, "id");
-  const date = new Date(`${birthDate}T00:00:00.000Z`);
   const currentYear = new Date().getFullYear();
   if (!uuid.test(id)) return { error: "Formulir pendaftaran tidak valid." };
 
@@ -59,14 +60,12 @@ export async function register(_: Result, form: FormData): Promise<Result> {
   if (!birthPlace) fieldErrors.birth_place = "Tempat lahir wajib diisi.";
   else if (birthPlace.length > 100)
     fieldErrors.birth_place = "Tempat lahir maksimal 100 karakter.";
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) ||
-    Number.isNaN(date.getTime()) ||
-    date.toISOString().slice(0, 10) !== birthDate ||
-    date.getTime() > Date.now()
-  )
-    fieldErrors.birth_date =
-      "Masukkan tanggal lahir yang valid dan tidak melebihi hari ini.";
+  if (!birthDate)
+    fieldErrors.birth_date = birthDateInput
+      ? "Masukkan tanggal lahir yang valid dengan format dd/mm/yyyy."
+      : "Tanggal lahir wajib diisi.";
+  else if (birthDate > getTodayInJakarta())
+    fieldErrors.birth_date = "Tanggal lahir tidak boleh melebihi hari ini.";
   if (!["Laki-laki", "Perempuan"].includes(gender))
     fieldErrors.gender = "Pilih jenis kelamin.";
   if (
@@ -99,11 +98,11 @@ export async function register(_: Result, form: FormData): Promise<Result> {
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   )
     fieldErrors.email = "Masukkan alamat email yang valid.";
-  if (!["SMP", "SMA", "SMK", "D3", "S1"].includes(educationLevel))
+  if (!["SMP", "SMA", "SMK", "D3", "D4", "S1"].includes(educationLevel))
     fieldErrors.education_level = "Pilih pendidikan terakhir.";
-  if (!schoolName) fieldErrors.school_name = "Asal sekolah wajib diisi.";
+  if (!schoolName) fieldErrors.school_name = "Asal institusi wajib diisi.";
   else if (schoolName.length > 150)
-    fieldErrors.school_name = "Asal sekolah maksimal 150 karakter.";
+    fieldErrors.school_name = "Nama institusi maksimal 150 karakter.";
   if (!major) fieldErrors.major = "Jurusan wajib diisi.";
   else if (major.length > 120)
     fieldErrors.major = "Jurusan maksimal 120 karakter.";
