@@ -8,7 +8,10 @@ import {
   registrationDocuments,
   type RegistrationDocumentKey,
 } from "@/lib/registration";
-import { logout, updateStatus } from "@/app/actions";
+import { AdminRegistrantStatus } from "@/components/admin-registrant-status";
+import { AdminRegistrantDelete } from "@/components/admin-registrant-delete";
+import { AdminDashboardRefresh } from "@/components/admin-dashboard-refresh";
+import { logout } from "@/app/actions";
 export const metadata = { title: "Dashboard admin", robots: { index: false } };
 const states = ["Baru", "Dihubungi", "Diterima"] as const;
 const sortOptions = ["newest", "oldest", "name-asc", "name-desc"] as const;
@@ -132,7 +135,7 @@ export default async function Page({
         </div>
       </header>
       <main className="shell">
-        <div className="board">
+        <div className="board registrants-board">
           <p className="label">
             <i />
             DASHBOARD ADMIN
@@ -222,6 +225,7 @@ export default async function Page({
                         "Domisili",
                         "Tanggal",
                         "Status",
+                        "Aksi",
                       ].map((t) => (
                         <th key={t} scope="col">
                           {t === "Status" ? (
@@ -351,29 +355,18 @@ export default async function Page({
                         </td>
                         <td>
                           <span className="registrant-mobile-label">Status</span>
-                          <form
-                            action={updateStatus}
-                            className="registrant-status-form flex items-center gap-2"
-                          >
-                            <input type="hidden" name="id" value={r.id} />
-                            <select
-                              className="registrant-status-select"
-                              name="status"
-                              aria-label={"Status " + r.full_name}
-                              defaultValue={r.status}
-                              required
-                            >
-                              {states.map((s) => (
-                                <option key={s}>{s}</option>
-                              ))}
-                            </select>
-                            <button
-                              className="registrant-save-button"
-                              type="submit"
-                            >
-                              Simpan
-                            </button>
-                          </form>
+                          <AdminRegistrantStatus
+                            id={r.id}
+                            fullName={r.full_name}
+                            status={r.status}
+                          />
+                        </td>
+                        <td>
+                          <span className="registrant-mobile-label">Aksi</span>
+                          <AdminRegistrantDelete
+                            id={r.id}
+                            fullName={r.full_name}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -405,6 +398,7 @@ export default async function Page({
               </div>
             </div>
           </section>
+          <AdminDashboardRefresh />
         </div>
       </main>
     </>

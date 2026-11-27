@@ -293,6 +293,22 @@ export async function updateStatus(form: FormData) {
     status = text(form, "status");
   if (!uuid.test(id) || !["Baru", "Dihubungi", "Diterima"].includes(status))
     throw Error("Data tidak valid.");
-  await sql()`UPDATE registrations SET status=${status} WHERE id=${id}`;
+  const [updated] = await sql()<{
+    status: string;
+  }[]>`UPDATE registrations SET status=${status} WHERE id=${id} RETURNING status`;
+  if (!updated) throw Error("Data pendaftar tidak ditemukan.");
+  revalidatePath("/admin/dashboard");
+  return updated.status;
+}
+export async function deleteRegistration(form: FormData) {
+  await requireAdmin();
+  const id = text(form, "id");
+  if (!uuid.test(id)) throw Error("Data pendaftaran tidak valid.");
+
+  const [deleted] = await sql()`
+    DELETE FROM registrations WHERE id=${id} RETURNING id
+  `;
+  if (!deleted) throw Error("Data pendaftar tidak ditemukan.");
+
   revalidatePath("/admin/dashboard");
 }
