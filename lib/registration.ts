@@ -19,7 +19,7 @@ export const registrationDocuments = [
   },
   {
     key: "ijazah",
-    label: "Ijazah (SD s.d. SMA/K sederajat)",
+    label: "Ijazah (SD s.d. Pendidikan Terakhir)",
     accept: ".pdf",
     multiple: true,
   },

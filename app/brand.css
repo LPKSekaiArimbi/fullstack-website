@@ -273,8 +273,10 @@ article p,
 }
 .hero-carousel figcaption {
   left: 16px;
-  right: 16px;
-  justify-content: space-between;
+  right: auto;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  justify-content: flex-start;
   gap: 12px;
 }
 .carousel-location {
@@ -589,7 +591,8 @@ footer {
   }
   .hero-carousel figcaption {
     left: 12px;
-    right: 12px;
+    right: auto;
+    max-width: calc(100% - 24px);
     bottom: 12px;
   }
   .brand small {

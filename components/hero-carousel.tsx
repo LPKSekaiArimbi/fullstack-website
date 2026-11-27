@@ -262,7 +262,7 @@ export function HeroCarousel() {
           </button>
         </div>
       </div>
-      <details className="carousel-attributions">
+      {/* <details className="carousel-attributions">
         <summary>Atribusi foto</summary>
         <ul>
           {slides.map((slide) =>
@@ -288,7 +288,7 @@ export function HeroCarousel() {
             ) : null,
           )}
         </ul>
-      </details>
+      </details> */}
     </div>
   );
 }
