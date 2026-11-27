@@ -1051,4 +1051,8 @@ footer {
     grid-template-columns: 1fr;
     gap: 0;
   }
+  .form-fields.form-fields-keep-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
 }

@@ -256,6 +256,7 @@ export function RegistrationForm({ id }: { id: string }) {
   const [showNavigationWarning, setShowNavigationWarning] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const hasUnsavedChanges = useRef(false);
+  const pendingNavigation = useRef<string | null>(null);
   useEffect(() => setFieldErrors(state.fieldErrors ?? {}), [state]);
   useEffect(() => {
     if (state.number) {
@@ -275,8 +276,6 @@ export function RegistrationForm({ id }: { id: string }) {
   }, []);
 
   useEffect(() => {
-    const warning =
-      "Data dan berkas pendaftaran belum dikirim. Yakin ingin meninggalkan halaman?";
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!hasUnsavedChanges.current) return;
       event.preventDefault();
@@ -303,11 +302,8 @@ export function RegistrationForm({ id }: { id: string }) {
         new URL(link.href, window.location.href).href === window.location.href
       )
         return;
-      if (window.confirm(warning)) {
-        hasUnsavedChanges.current = false;
-        setRegistrationChangesUnsaved(false);
-        return;
-      }
+      pendingNavigation.current = link.href;
+      setShowNavigationWarning(true);
       event.preventDefault();
       event.stopPropagation();
     };
@@ -559,7 +555,7 @@ export function RegistrationForm({ id }: { id: string }) {
             required
           />
         </Field>
-        <div className="form-fields">
+        <div className="form-fields form-fields-keep-columns">
           <Field label="Tinggi Badan (cm)">
             <Input name="height_cm" type="number" min={100} max={230} required />
           </Field>
@@ -667,17 +663,23 @@ export function RegistrationForm({ id }: { id: string }) {
                 type="button"
                 variant="outline"
                 autoFocus
-                onClick={() => setShowNavigationWarning(false)}
+                onClick={() => {
+                  pendingNavigation.current = null;
+                  setShowNavigationWarning(false);
+                }}
               >
                 Tetap mengisi
               </Button>
               <Button
                 type="button"
                 onClick={() => {
+                  const destination = pendingNavigation.current;
+                  pendingNavigation.current = null;
                   hasUnsavedChanges.current = false;
                   setRegistrationChangesUnsaved(false);
                   setShowNavigationWarning(false);
-                  window.history.back();
+                  if (destination) window.location.assign(destination);
+                  else window.history.back();
                 }}
               >
                 Tinggalkan halaman
